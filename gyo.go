@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
+	"github.com/lordkevinmo/gyo/render"
 	"log"
 	"net/http"
 	"os"
@@ -21,6 +22,7 @@ type Gyo struct {
 	InfoLog  *log.Logger
 	Routes   *chi.Mux
 	RootPath string
+	Renderer *render.Render
 	config   config
 }
 
@@ -72,6 +74,8 @@ func (g *Gyo) New(rootPath string) error {
 		renderer: os.Getenv("RENDERER"),
 	}
 
+	g.Renderer = g.createRenderer(g)
+
 	return nil
 }
 
@@ -116,4 +120,14 @@ func (g *Gyo) startLoggers() (*log.Logger, *log.Logger) {
 	infoLog = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 
 	return errorLog, infoLog
+}
+
+func (g *Gyo) createRenderer(gyo *Gyo) *render.Render {
+	renderer := render.Render{
+		Renderer: gyo.config.renderer,
+		RootPath: gyo.RootPath,
+		Port:     gyo.config.port,
+	}
+
+	return &renderer
 }
