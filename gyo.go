@@ -74,7 +74,7 @@ func (g *Gyo) New(rootPath string) error {
 		renderer: os.Getenv("RENDERER"),
 	}
 
-	g.Renderer = g.createRenderer(g)
+	g.createRenderer()
 
 	return nil
 }
@@ -94,7 +94,7 @@ func (g *Gyo) ListAndServe() {
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", os.Getenv("PORT")),
 		ErrorLog:     g.ErrorLog,
-		Handler:      g.routes(),
+		Handler:      g.Routes,
 		IdleTimeout:  30 * time.Second,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 300 * time.Second,
@@ -122,12 +122,11 @@ func (g *Gyo) startLoggers() (*log.Logger, *log.Logger) {
 	return errorLog, infoLog
 }
 
-func (g *Gyo) createRenderer(gyo *Gyo) *render.Render {
+func (g *Gyo) createRenderer() {
 	renderer := render.Render{
-		Renderer: gyo.config.renderer,
-		RootPath: gyo.RootPath,
-		Port:     gyo.config.port,
+		Renderer: g.config.renderer,
+		RootPath: g.RootPath,
+		Port:     g.config.port,
 	}
-
-	return &renderer
+	g.Renderer = &renderer
 }
