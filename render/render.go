@@ -1,6 +1,7 @@
 package render
 
 import (
+	"errors"
 	"fmt"
 	"github.com/CloudyKit/jet/v6"
 	"html/template"
@@ -33,15 +34,16 @@ type TemplateData struct {
 func (render *Render) Page(w http.ResponseWriter, r *http.Request, view string, variables, data interface{}) error {
 	switch strings.ToLower(render.Renderer) {
 	case "go":
-		return render.GoPage(w, r, view, data)
+		return render.goPage(w, r, view, data)
 	case "jet":
-		return render.JetPage(w, r, view, variables, data)
+		return render.jetPage(w, r, view, variables, data)
+	default:
 	}
-	return nil
+	return errors.New("no rendering template engine is specified")
 }
 
-func (render *Render) GoPage(w http.ResponseWriter, r *http.Request, view string, data interface{}) error {
-	tmpl, err := template.ParseFiles(fmt.Sprintf("%s/views/%spage.tmpl", render.RootPath, view))
+func (render *Render) goPage(w http.ResponseWriter, r *http.Request, view string, data interface{}) error {
+	tmpl, err := template.ParseFiles(fmt.Sprintf("%s/views/%s.page.tmpl", render.RootPath, view))
 	if err != nil {
 		return err
 	}
@@ -59,7 +61,7 @@ func (render *Render) GoPage(w http.ResponseWriter, r *http.Request, view string
 	return nil
 }
 
-func (render *Render) JetPage(w http.ResponseWriter, r *http.Request, templateName string, variables, data interface{}) error {
+func (render *Render) jetPage(w http.ResponseWriter, r *http.Request, templateName string, variables, data interface{}) error {
 	var vars jet.VarMap
 
 	if variables == nil {
