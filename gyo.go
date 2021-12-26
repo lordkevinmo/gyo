@@ -2,6 +2,7 @@ package gyo
 
 import (
 	"fmt"
+	"github.com/CloudyKit/jet/v6"
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
 	"github.com/lordkevinmo/gyo/render"
@@ -23,6 +24,7 @@ type Gyo struct {
 	Routes   *chi.Mux
 	RootPath string
 	Renderer *render.Render
+	JetViews *jet.Set
 	config   config
 }
 
@@ -74,6 +76,12 @@ func (g *Gyo) New(rootPath string) error {
 		renderer: os.Getenv("RENDERER"),
 	}
 
+	var views = jet.NewSet(
+		jet.NewOSFileSystemLoader(fmt.Sprintf("%s/views", rootPath)),
+		jet.InDevelopmentMode(),
+	)
+
+	g.JetViews = views
 	g.createRenderer()
 
 	return nil
@@ -127,6 +135,7 @@ func (g *Gyo) createRenderer() {
 		Renderer: g.config.renderer,
 		RootPath: g.RootPath,
 		Port:     g.config.port,
+		JetViews: g.JetViews,
 	}
 	g.Renderer = &renderer
 }
