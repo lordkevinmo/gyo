@@ -6,61 +6,44 @@ import (
 	"testing"
 )
 
+var pageData = []struct {
+	name          string
+	renderer      string
+	template      string
+	errorExpected bool
+	errorMessage  string
+}{
+	{"go_page", "go", "home", false, "error rendering go template"},
+	{"go_page_no_template", "go", "no-file", true,
+		"no error rendering non-existent go template, when one expected"},
+	{"jet_page", "jet", "home", false, "error rendering jet template"},
+	{"jet_page_no_template", "jet", "no-file", true,
+		"no error rendering non-existent jet template, when one is expected"},
+	{"invalid_render_engine", "foobar", "home", true,
+		"no error rendering with non-existent template engine"},
+}
+
 func TestRender_Page(t *testing.T) {
-	r, err := http.NewRequest(http.MethodGet, "/random-url", nil)
-	if err != nil {
-		t.Error(err)
-	}
+	for _, e := range pageData {
+		r, err := http.NewRequest(http.MethodGet, "/random-url", nil)
+		if err != nil {
+			t.Error(err)
+		}
 
-	w := httptest.NewRecorder()
+		w := httptest.NewRecorder()
 
-	testRenderer.RootPath = "./testData"
+		testRenderer.RootPath = "./testData"
+		testRenderer.Renderer = e.renderer
 
-	shouldThrowErrorWhenTheTemplateEngineIsSetWrongly(w, r, t)
-
-	shouldNotReturnErrorWhenRendererIsGoTemplate(w, r, t)
-	shouldReturnErrorWhenRendererIsGoTemplateButTheFileDoesNotExists(w, r, t)
-
-	shouldNotReturnErrorWhenRendererIsJetTemplate(w, r, t)
-	shouldReturnErrorWhenRendererIsJetTemplateButTheFileDoesNotExists(w, r, t)
-}
-
-func shouldThrowErrorWhenTheTemplateEngineIsSetWrongly(w http.ResponseWriter, r *http.Request, t *testing.T) {
-	testRenderer.Renderer = ""
-	err := testRenderer.Page(w, r, "home", nil, nil)
-	if err == nil {
-		t.Error("No Error returned while rendering with invalid renderer specified", err)
-	}
-}
-
-func shouldNotReturnErrorWhenRendererIsGoTemplate(w http.ResponseWriter, r *http.Request, t *testing.T) {
-	testRenderer.Renderer = "go"
-	err := testRenderer.Page(w, r, "home", nil, nil)
-	if err != nil {
-		t.Error("Error rendering Go template Page", err)
-	}
-}
-
-func shouldReturnErrorWhenRendererIsGoTemplateButTheFileDoesNotExists(w http.ResponseWriter, r *http.Request, t *testing.T) {
-	testRenderer.Renderer = "go"
-	err := testRenderer.Page(w, r, "no-file", nil, nil)
-	if err == nil {
-		t.Error("Error rendering non-existent Go template page", err)
-	}
-}
-
-func shouldNotReturnErrorWhenRendererIsJetTemplate(w http.ResponseWriter, r *http.Request, t *testing.T) {
-	testRenderer.Renderer = "jet"
-	err := testRenderer.Page(w, r, "home", nil, nil)
-	if err != nil {
-		t.Error("Error rendering Jet template Page", err)
-	}
-}
-
-func shouldReturnErrorWhenRendererIsJetTemplateButTheFileDoesNotExists(w http.ResponseWriter, r *http.Request, t *testing.T) {
-	testRenderer.Renderer = "jet"
-	err := testRenderer.Page(w, r, "no-file", nil, nil)
-	if err == nil {
-		t.Error("Error rendering non-existent Jet template page", err)
+		err = testRenderer.Page(w, r, e.template, nil, nil)
+		if e.errorExpected {
+			if err == nil {
+				t.Errorf("%s: %s", e.name, e.errorMessage)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("%s: %s: %s", e.name, e.errorMessage, err.Error())
+			}
+		}
 	}
 }
