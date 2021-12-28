@@ -3,9 +3,11 @@ package gyo
 import (
 	"fmt"
 	"github.com/CloudyKit/jet/v6"
+	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
 	"github.com/lordkevinmo/gyo/render"
+	"github.com/lordkevinmo/gyo/session"
 	"log"
 	"net/http"
 	"os"
@@ -25,12 +27,15 @@ type Gyo struct {
 	RootPath string
 	Renderer *render.Render
 	JetViews *jet.Set
+	Session  *scs.SessionManager
 	config   config
 }
 
 type config struct {
-	port     string
-	renderer string
+	port        string
+	renderer    string
+	cookie      cookieConfig
+	sessionType string
 }
 
 func (g *Gyo) New(rootPath string) error {
@@ -74,7 +79,26 @@ func (g *Gyo) New(rootPath string) error {
 	g.config = config{
 		port:     os.Getenv("PORT"),
 		renderer: os.Getenv("RENDERER"),
+		cookie: cookieConfig{
+			name:     os.Getenv("SESSION_NAME"),
+			lifetime: os.Getenv("SESSION_LIFETIME"),
+			persist:  os.Getenv("SESSION_PERSIST"),
+			secure:   os.Getenv("SESSION_SECURE"),
+			domain:   os.Getenv("SESSION_DOMAIN"),
+		},
+		sessionType: os.Getenv("SESSION_TYPE"),
 	}
+
+	sess := session.Session{
+		CookieName:     g.config.cookie.name,
+		CookieDomain:   g.config.cookie.domain,
+		CookieLifetime: g.config.cookie.lifetime,
+		CookiePersist:  g.config.cookie.persist,
+		CookieSecure:   g.config.cookie.secure,
+		SessionType:    g.config.sessionType,
+	}
+
+	g.Session = sess.InitSession()
 
 	var views = jet.NewSet(
 		jet.NewOSFileSystemLoader(fmt.Sprintf("%s/views", rootPath)),

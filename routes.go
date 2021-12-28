@@ -15,7 +15,7 @@ func (g *Gyo) routes() http.Handler {
 		mux.Use(middleware.Logger)
 	}
 	mux.Use(middleware.Recoverer)
-
+	mux.Use(g.LoadSession)
 	mux.Get("/", func(writer http.ResponseWriter, request *http.Request) {
 		_, _ = fmt.Fprint(writer, "Welcome to GYO")
 	})
