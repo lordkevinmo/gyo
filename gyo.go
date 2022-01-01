@@ -1,6 +1,7 @@
 package gyo
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"github.com/CloudyKit/jet/v6"
@@ -12,6 +13,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
 	"time"
 )
@@ -157,13 +159,32 @@ func (g *Gyo) ListAndServe() {
 	defer func(Pool *sql.DB) {
 		err := Pool.Close()
 		if err != nil {
-			panic(err)
+			g.ErrorLog.Println(err)
 		}
 	}(g.DB.Pool)
 
 	g.InfoLog.Printf("Listening on port %s", os.Getenv("PORT"))
-	err := srv.ListenAndServe()
-	g.ErrorLog.Fatal(err)
+
+	go func() {
+		err := srv.ListenAndServe()
+		g.ErrorLog.Fatal(err)
+	}()
+
+	sigChan := make(chan os.Signal)
+	signal.Notify(sigChan, os.Interrupt)
+	signal.Notify(sigChan, os.Kill)
+
+	sig := <-sigChan
+	g.InfoLog.Println("Received Terminate, graceful shutdown", sig)
+
+	ctxt, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	err := srv.Shutdown(ctxt)
+	if err != nil {
+		g.ErrorLog.Println(err)
+	}
+	g.InfoLog.Println("Shutting Down the server")
 }
 
 func (g *Gyo) checkDotEnv(path string) error {
