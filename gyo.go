@@ -1,6 +1,7 @@
 package gyo
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/CloudyKit/jet/v6"
 	"github.com/alexedwards/scs/v2"
@@ -28,6 +29,7 @@ type Gyo struct {
 	Renderer *render.Render
 	JetViews *jet.Set
 	Session  *scs.SessionManager
+	DB       Database
 	config   config
 }
 
@@ -36,6 +38,7 @@ type config struct {
 	renderer    string
 	cookie      cookieConfig
 	sessionType string
+	dbConfig    databaseConfig
 }
 
 func (g *Gyo) New(rootPath string) error {
@@ -69,6 +72,21 @@ func (g *Gyo) New(rootPath string) error {
 	}
 
 	errorLog, infoLog := g.startLoggers()
+
+	// connect to the BD
+	dbType := os.Getenv("DB_TYPE")
+	if dbType != "" {
+		db, err := g.OpenDB(dbType, g.buildDbSourceName())
+		if err != nil {
+			errorLog.Println(err)
+			os.Exit(1)
+		}
+		g.DB = Database{
+			DatabaseType: dbType,
+			Pool:         db,
+		}
+	}
+
 	g.ErrorLog = errorLog
 	g.InfoLog = infoLog
 	g.Debug, _ = strconv.ParseBool(os.Getenv("DEBUG"))
@@ -87,6 +105,10 @@ func (g *Gyo) New(rootPath string) error {
 			domain:   os.Getenv("SESSION_DOMAIN"),
 		},
 		sessionType: os.Getenv("SESSION_TYPE"),
+		dbConfig: databaseConfig{
+			database:     dbType,
+			dbSourceName: g.buildDbSourceName(),
+		},
 	}
 
 	sess := session.Session{
@@ -132,6 +154,13 @@ func (g *Gyo) ListAndServe() {
 		WriteTimeout: 300 * time.Second,
 	}
 
+	defer func(Pool *sql.DB) {
+		err := Pool.Close()
+		if err != nil {
+			panic(err)
+		}
+	}(g.DB.Pool)
+
 	g.InfoLog.Printf("Listening on port %s", os.Getenv("PORT"))
 	err := srv.ListenAndServe()
 	g.ErrorLog.Fatal(err)
@@ -162,4 +191,31 @@ func (g *Gyo) createRenderer() {
 		JetViews: g.JetViews,
 	}
 	g.Renderer = &renderer
+}
+
+func (g *Gyo) buildDbSourceName() string {
+	var dsn string
+
+	switch os.Getenv("DB_TYPE") {
+	case "postgres", "postgresql":
+		dsn = g.buildDbSourceNameForPostgres()
+	default:
+	}
+
+	return dsn
+}
+
+func (g *Gyo) buildDbSourceNameForPostgres() string {
+	var dsn string
+	dsn = fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s timezone=UTC connect_timeout=10",
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_SSL_MODE"),
+	)
+	if os.Getenv("DB_PASSWORD") != "" {
+		dsn = fmt.Sprintf("%s password=%s", dsn, os.Getenv("DB_PASSWORD"))
+	}
+	return dsn
 }
